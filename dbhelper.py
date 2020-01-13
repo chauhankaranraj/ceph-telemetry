@@ -57,16 +57,18 @@ def run_insert(cur, sql, d):
 def insert_into_all_tables(conn, report_id_serial, j):
     cur = conn.cursor()
 
+    cur.execute("DELETE FROM cluster WHERE cluster_id=%s", (j['report_id'],))
+
     cluster = {}
     cluster['report_id']            = report_id_serial
     cluster['cluster_id']           = j.get('report_id')
     # If a field does not exist in the json then it will be inserted as "null" to the database
     cluster['latest_report_timestamp'] = j.get('report_timestamp')
     cluster['created']			    = j.get('created')
-    cluster['channel_basic']		= 'basic' in j.get('channels')
-    cluster['channel_crash']		= 'crash' in j.get('channels')
-    cluster['channel_device']		= 'device' in j.get('channels') 
-    cluster['channel_ident']		= 'ident' in j.get('channels')
+    cluster['channel_basic']		= 'basic' in j.get('channels', [])
+    cluster['channel_crash']		= 'crash' in j.get('channels', [])
+    cluster['channel_device']		= 'device' in j.get('channels', [])
+    cluster['channel_ident']		= 'ident' in j.get('channels', [])
 
     cluster['total_bytes']	        = j.get('usage', {}).get('total_bytes')
     cluster['total_used_bytes']     = j.get('usage', {}).get('total_used_bytes')

@@ -61,7 +61,7 @@ SELECT COUNT(DISTINCT(value)) FROM metadata WHERE cluster_id=$cluster_id AND att
 
 \echo Creating table metadata
 CREATE TABLE metadata (
-	cluster_id		INTEGER REFERENCES cluster(id),
+	cluster_id		INTEGER REFERENCES cluster(id) ON DELETE CASCADE,
 	entity			VARCHAR(16),
 	attr			VARCHAR(32),
 	value			VARCHAR(128),
@@ -70,7 +70,7 @@ CREATE TABLE metadata (
 
 \echo Creating table rbd_pool
 CREATE TABLE rbd_pool (
-	cluster_id		INTEGER REFERENCES cluster(id),
+	cluster_id		INTEGER REFERENCES cluster(id) ON DELETE CASCADE,
 	pool_idx		INTEGER, /* needs to derive this from the element position in the array */
 	num_images		INTEGER,
 	mirroring		BOOLEAN
@@ -78,7 +78,7 @@ CREATE TABLE rbd_pool (
 
 \echo Creating table pool 
 CREATE TABLE pool (
-	cluster_id		INTEGER REFERENCES cluster(id),
+	cluster_id		INTEGER REFERENCES cluster(id) ON DELETE CASCADE,
 	pool_idx		INTEGER,
 	pgp_num			INTEGER,
 	pg_num			INTEGER,
