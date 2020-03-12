@@ -45,12 +45,23 @@ def import_raw_to_report_table(conn, report, j):
     return report_id_serial
 
 
-def run_insert(cur, sql, d):
+def run_insert(cur, sql, d, extra_vals = ()):
     columns = d.keys()
     values = [d[column] for column in columns]
 
-    cur.execute(sql, (AsIs(','.join(columns)), tuple(values)))
+    cur.execute(sql, (AsIs(','.join(columns)), tuple(values)) + extra_vals)
     #print(cur.mogrify(sql, (AsIs(','.join(columns)), tuple(values))))
+
+def run_insert_or_update(cur, i_sql, i_d, u_d, returning = None):
+    i_columns = i_d.keys()
+    i_values = [i_d[column] for column in i_columns]
+
+    u_columns = u_d.keys()
+    u_values = [u_d[column] for column in u_columns]
+
+    sql = i_sql + ' ' + u_sql
+    cur.execute(sql, 
+            (AsIs(','.join(i_columns)), tuple(i_values)))
 
 
 # FIXME replace 'j' with a short descriptive name (report_json is too long)

@@ -110,3 +110,38 @@ CREATE TABLE crash (
 	stack_sig		VARCHAR(64),
 	stack			TEXT
 );
+
+CREATE TABLE device_report (
+	device_id		VARCHAR(128),
+	report_stamp	TIMESTAMP,
+	report			TEXT
+);
+
+CREATE TYPE interface_type AS ENUM ('sata', 'sas', 'nvme');
+
+-- maybe need to change ssd to flash
+CREATE TYPE device_type AS ENUM ('hdd', 'ssd');
+
+
+CREATE TABLE device (
+	id			SERIAL PRIMARY KEY,
+	serial			VARCHAR(128),
+	vendor			VARCHAR(128),
+	model			VARCHAR(128),
+	--interface		VARCHAR(16),
+	hostname		VARCHAR(128),
+	type			device_type,
+	interface		interface_type,
+	first_report		TIMESTAMP,
+	last_report		TIMESTAMP,
+	report_count		INT,
+	error			TEXT
+);
+
+CREATE TABLE device_smart (
+	device_id		INTEGER REFERENCES device(id) ON DELETE CASCADE,
+	attr_name		INTEGER,
+	attr_value		INTEGER,
+	created			TIMESTAMP
+);
+
