@@ -10,7 +10,7 @@ from os import listdir
 from os.path import isfile, join
 
 # Data Source Name file
-DSN = '/opt/telemetry/device_telemetry.dsn'
+DSN = '/opt/telemetry/grafana.dsn'
 
 # TODO:
 #    1. pay attention to differences between 
@@ -47,7 +47,11 @@ CREATE TABLE public.device_report (
 	report text NULL,
 	id serial NOT NULL
 );
-CREATE UNIQUE INDEX device_report_id_idx ON public.device_report USING btree (id);
+CREATE UNIQUE INDEX public.device_report_id_idx ON public.device_report (id);
+
+or:
+    ALTER TABLE public.device_report ADD COLUMN "id" SERIAL NOT NULL;
+    CREATE UNIQUE INDEX ON public.device_report (id);
 """
 
 
@@ -71,7 +75,7 @@ def run():
     dict_cur.execute("""SELECT device_id, report_stamp, report, id 
                     FROM public.device_report 
                     WHERE id > (SELECT var_value 
-                                FROM device_inserter_state 
+                                FROM grafana.device_inserter_state 
                                 WHERE var_name = 'last_inserted_id')
                     ORDER BY report_stamp
                     """)

@@ -63,6 +63,10 @@ CREATE TABLE grafana.device_inserter_state (
         var_value	        INTEGER
 );
 
+GRANT usage ON SCHEMA grafana TO grafana;
+GRANT ALL ON ALL TABLES IN SCHEMA grafana TO grafana;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA grafana TO grafana;
+
 INSERT INTO grafana.device_inserter_state
 	(var_name, var_value)
 VALUES
