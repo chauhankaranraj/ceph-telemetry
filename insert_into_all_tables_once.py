@@ -5,23 +5,15 @@ import dbhelper
 import psycopg2
 import psycopg2.extras
 import json
+import re
+import sys
 from pathlib import Path
 from os import listdir
 from os.path import isfile, join
-
-"""
-This script is to be run once when we move to the new db.
-We go over the records in the report table and insert the latest reports 
-into the other tables.
-"""
+import time
 
 # Data Source Name file
 DSN = '/opt/telemetry/grafana.dsn'
-
-"""
-DIR = '/home/yaarit/src/telemetry_db/raw'
-# DIR = '/opt/telemetry/raw'
-"""
 
 # FIXME replace 'j' with a short descriptive name (report_json is too long)
 def insert_into_all_tables(conn, report_id_serial, j):
@@ -34,7 +26,6 @@ def insert_into_all_tables(conn, report_id_serial, j):
     cluster['report_id']            = report_id_serial
     cluster['cluster_id']           = j.get('report_id')
     # If a field does not exist in the json then it will be inserted as "null" to the database
-    #cluster['latest_report_timestamp'] = j.get('report_timestamp')
     cluster['ts']                   = report_timestamp
     cluster['created']			    = j.get('created')
     if cluster['created'] == '0.000000':
@@ -63,10 +54,8 @@ def insert_into_all_tables(conn, report_id_serial, j):
     # Compatibility with older telemetry modules
     cluster['pg_num']               = j.get('usage', {}).get('pg_num') or j.get('usage', {}).get('pg_num:') 
 
-    #sql = 'INSERT INTO grafana.cluster (%s) VALUES %s RETURNING id'
     sql = 'INSERT INTO grafana.ts_cluster (%s) VALUES %s'
     dbhelper.run_insert(cur, sql, cluster)
-    #cluster_id_serial = cur.fetchone()[0]
 
     for p in j.get('pools', []):
         pool = {}
@@ -121,54 +110,40 @@ def insert_into_all_tables(conn, report_id_serial, j):
         sql = 'INSERT INTO grafana.rbd_pool (%s) VALUES %s'
         dbhelper.run_insert(cur, sql, rbd_pool)
 
-
     # Commiting once, so everything is one transaction
     conn.commit()
 
-def run():
+def main():
+    start_time = time.time()
     with open(DSN, 'r') as f:
         dsn_str = f.read().strip()
 
     conn = psycopg2.connect(dsn_str)
-    #cur = conn.cursor(name='my_cursor', withhold=True) # create a named server-side cursor
     # Create a named server-side cursor
     dict_cur = conn.cursor(name='server_side_cursor', withhold=True, cursor_factory=psycopg2.extras.DictCursor)
-    # conn.setAutoCommit(false);
 
     dict_cur.itersize = 10
-    dict_cur.execute("SELECT id, report FROM public.report ORDER BY cluster_id, report_stamp")
-
-    '''
-    dict_cur.execute("""SELECT id, report_stamp, report, id 
-                    FROM public.report 
-                    WHERE id > (SELECT var_value 
-                                FROM grafana.device_inserter_state 
-                                WHERE var_name = 'last_inserted_report_id')
-                    ORDER BY timestamp
-                    """)
-    '''
-
-
+    dict_cur.execute("""SELECT id, report
+                        FROM public.report
+                        WHERE id > (SELECT MAX(ts_cluster.report_id)
+                                    FROM grafana.ts_cluster)
+                        ORDER BY id""")
     i = 0;
-    # check for errors
-    for r in dict_cur:
-        i += 1
-        if i % 100 == 0:
-            print("at %s\n" % i)
-        insert_into_all_tables(conn, r['id'], json.loads(r['report']))
+    # TODO: Check for errors
+    try:
+        for r in dict_cur:
+            i += 1
+            insert_into_all_tables(conn, r['id'], json.loads(r['report']))
+        dict_cur.close()
+    finally:
+        refresh_cur = conn.cursor()
+        refresh_cur.execute("REFRESH MATERIALIZED VIEW grafana.weekly_reports_sliding")
+        refresh_cur.close()
 
-    # conn.commit() # Store the raw report even if the rest of the import fails
-    dict_cur.close()
+    end_time = time.time()
+    time_delta = int(end_time - start_time)
+    print(f"Processed {i} reports in {time_delta} seconds ({int(i/time_delta)} reports/second)\n")
 
-    """
-    files = [f for f in listdir(DIR) if isfile(join(DIR, f))]
-    for fname in files:
-        report = Path(DIR + '/' + fname).read_text()
-        j = json.loads(report)
-        # We use json.dumps(j) since the report is pretty printed
-        # and we want to save space in the db.
-        dbhelper.import_raw_to_report_table(conn, json.dumps(j), j)
-    """
 
-run()
-
+if __name__ == '__main__':
+    sys.exit(main())
