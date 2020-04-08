@@ -44,6 +44,7 @@ CREATE TABLE grafana.ts_cluster (
 	pg_num			INTEGER
 );
 
+CREATE INDEX ON grafana.ts_cluster (ts);
 
 /*
   "metadata": {
@@ -99,3 +100,47 @@ CREATE TABLE grafana.pool (
 	ec_plugin		VARCHAR(32),
 	ec_technique		VARCHAR(32)
 );
+
+CREATE TABLE grafana.version_to_name (
+    version     VARCHAR(32),
+    name        VARCHAR(32)
+)
+
+INSERT INTO grafana.version_to_name(version, name)
+VALUES
+    ('12', 'Luminous'),
+    ('13', 'Mimic'),
+    ('14', 'Nautilus'),
+    ('15', 'Octopus'),
+    ('Dev', NULL);
+
+
+CREATE MATERIALIZED VIEW grafana.weekly_reports_sliding AS
+  SELECT
+	DISTINCT ON(daily_window, cluster_id)
+    daily_window, report_id
+	/*
+ 	GENERATE_SERIES generates a table with a single column 'days'
+	('day' is a reserved keyword, hence 'days')
+ 	which holds all the days (a row per day) between the first report
+	and today. Day format is 'YYYY-MM-DD 00:00:00'.
+	*/
+  FROM
+	grafana.ts_cluster c,
+	GENERATE_SERIES('2019-03-01', now()::date, interval '1' day) daily_window
+  WHERE
+	c.ts BETWEEN daily_window - interval '7' day AND daily_window + interval '1' day
+  ORDER BY
+	daily_window,
+	cluster_id,
+	c.ts DESC;
+
+ALTER MATERIALIZED VIEW grafana.weekly_reports_sliding OWNER TO grafana;
+/*
+GRANT usage ON SCHEMA grafana TO grafana;
+GRANT ALL ON ALL TABLES IN SCHEMA grafana TO grafana;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA grafana TO grafana;
+*/
+GRANT usage ON SCHEMA grafana TO testu;
+GRANT ALL ON ALL TABLES IN SCHEMA grafana TO testu;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA grafana TO testu;

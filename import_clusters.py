@@ -128,7 +128,7 @@ def main():
                         WHERE id > (SELECT COALESCE(MAX(ts_cluster.report_id), 0)
                                     FROM grafana.ts_cluster)
                         ORDER BY id""")
-    cnt = 0;
+    cnt = 0
     try:
         for r in dict_cur:
             cnt += 1
